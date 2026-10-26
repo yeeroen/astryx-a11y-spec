@@ -14,5 +14,5 @@ export default defineConfig({
     target: 'node22',
     dts: true,
     clean: true,
-    external: ['@playwright/test'],
+    deps: { neverBundle: ['@playwright/test'] },
 })

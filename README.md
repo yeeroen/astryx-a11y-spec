@@ -12,7 +12,7 @@
 | Upstream | [`facebook/astryx`](https://github.com/facebook/astryx) → [`internal/a11y-spec`](https://github.com/facebook/astryx/tree/main/internal/a11y-spec) |
 | Synced commit | see [`UPSTREAM.json`](UPSTREAM.json) |
 | Upstream docs | [`upstream/README.md`](upstream/README.md) (verbatim), and Astryx's specs `docs/specs/AST-020` and `AST-021` |
-| Package | `@yeeroen/astryx-a11y-spec`, as a GitHub Release tarball (not on npm) |
+| Package | [`@yeeroen/astryx-a11y-spec`](https://www.npmjs.com/package/@yeeroen/astryx-a11y-spec) on npm, with provenance |
 
 ## What it is
 
@@ -34,10 +34,8 @@ Entry points:
 
 ## Install
 
-From a release tarball (public, no token needed):
-
 ```bash
-pnpm add -D @yeeroen/astryx-a11y-spec@https://github.com/yeeroen/astryx-a11y-spec/releases/download/v0.1.0/yeeroen-astryx-a11y-spec-0.1.0.tgz
+pnpm add -D @yeeroen/astryx-a11y-spec
 pnpm add -D @playwright/test   # peer, for the Chromium harness
 ```
 
@@ -64,8 +62,8 @@ extensions, and Node won't run TypeScript from `node_modules`. The original sour
 - **`sync.yml`** runs it every Monday (and by hand with a commit). When something changed, it bumps the minor
   version, runs the type check, the DOM tests, the build and the Chromium self-proofs, and opens a PR with the
   summary and the results. Review the upstream commits, match any changed tool pin, merge.
-- **`release.yml`**: a push to `main` with a version that has no tag yet packs the package and publishes the GitHub
-  Release `v<version>` with the tarball. Consumers bump the URL.
+- **`release.yml`**: a push to `main` with an unpublished version publishes it to npm through trusted publishing
+  (OIDC from this workflow, no token stored, provenance attached) and as the GitHub Release `v<version>`.
 
 Because `src/` is never edited here, a sync can't conflict. A fix to a contract goes upstream first; if it can't
 wait, carry it as a patch in the consuming project (`pnpm patch`) rather than in `src/`.

@@ -1,11 +1,13 @@
-# A push to main whose package.json version has no tag yet publishes it: the packed tarball as
-# the GitHub Release v<version>, installable by URL without a token.
+# A push to main whose package.json version isn't published yet releases it: to npm through trusted
+# publishing (OIDC: no npm token in the repo, provenance attached), and as the GitHub Release
+# v<version> with the same tarball.
 name: Release
 on:
     push:
         branches: [main]
 permissions:
     contents: write
+    id-token: write
 concurrency:
     group: release
     cancel-in-progress: false
@@ -22,20 +24,25 @@ jobs:
               with:
                   node-version: 24
                   cache: pnpm
-            - name: New version?
+                  registry-url: https://registry.npmjs.org
+            - name: What's new?
               id: version
               run: |
+                  name=$(jq -r .name package.json)
                   version=$(jq -r .version package.json)
                   echo "version=$version" >> "$GITHUB_OUTPUT"
-                  if gh release view "v$version" >/dev/null 2>&1; then
-                      echo "new=false" >> "$GITHUB_OUTPUT"
-                  else
-                      echo "new=true" >> "$GITHUB_OUTPUT"
-                  fi
-            - if: steps.version.outputs.new == 'true'
+                  if npm view "$name@$version" version >/dev/null 2>&1; then npm=false; else npm=true; fi
+                  if gh release view "v$version" >/dev/null 2>&1; then github=false; else github=true; fi
+                  echo "npm=$npm" >> "$GITHUB_OUTPUT"
+                  echo "github=$github" >> "$GITHUB_OUTPUT"
+            - if: steps.version.outputs.npm == 'true' || steps.version.outputs.github == 'true'
               run: pnpm install --frozen-lockfile
-            - name: Pack and publish
-              if: steps.version.outputs.new == 'true'
+            # `npm publish` runs prepack (the build); trusted publishing needs npm >= 11.5, which Node 24 has.
+            - name: Publish to npm
+              if: steps.version.outputs.npm == 'true'
+              run: npm publish --access public
+            - name: GitHub Release
+              if: steps.version.outputs.github == 'true'
               env:
                   VERSION: ${{ steps.version.outputs.version }}
               run: |
@@ -45,6 +52,6 @@ jobs:
                   notes="Packages facebook/astryx internal/a11y-spec at [\`${commit:0:7}\`](https://github.com/facebook/astryx/tree/$commit/internal/a11y-spec). Unofficial fork, not affiliated with Meta.
 
                   \`\`\`bash
-                  pnpm add -D @yeeroen/astryx-a11y-spec@https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/$tarball
+                  pnpm add -D @yeeroen/astryx-a11y-spec@$VERSION
                   \`\`\`"
                   gh release create "v$VERSION" "$tarball" --title "v$VERSION (astryx ${commit:0:7})" --notes "$notes" --target "$GITHUB_SHA"
