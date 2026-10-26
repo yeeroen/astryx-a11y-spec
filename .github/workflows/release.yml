@@ -1,0 +1,50 @@
+# A push to main whose package.json version has no tag yet publishes it: the packed tarball as
+# the GitHub Release v<version>, installable by URL without a token.
+name: Release
+on:
+    push:
+        branches: [main]
+permissions:
+    contents: write
+concurrency:
+    group: release
+    cancel-in-progress: false
+jobs:
+    release:
+        runs-on: ubuntu-24.04
+        timeout-minutes: 15
+        env:
+            GH_TOKEN: ${{ github.token }}
+        steps:
+            - uses: actions/checkout@v5
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: 24
+                  cache: pnpm
+            - name: New version?
+              id: version
+              run: |
+                  version=$(jq -r .version package.json)
+                  echo "version=$version" >> "$GITHUB_OUTPUT"
+                  if gh release view "v$version" >/dev/null 2>&1; then
+                      echo "new=false" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "new=true" >> "$GITHUB_OUTPUT"
+                  fi
+            - if: steps.version.outputs.new == 'true'
+              run: pnpm install --frozen-lockfile
+            - name: Pack and publish
+              if: steps.version.outputs.new == 'true'
+              env:
+                  VERSION: ${{ steps.version.outputs.version }}
+              run: |
+                  pnpm pack
+                  commit=$(jq -r .commit UPSTREAM.json)
+                  tarball="yeeroen-astryx-a11y-spec-$VERSION.tgz"
+                  notes="Packages facebook/astryx internal/a11y-spec at [\`${commit:0:7}\`](https://github.com/facebook/astryx/tree/$commit/internal/a11y-spec). Unofficial fork, not affiliated with Meta.
+
+                  \`\`\`bash
+                  pnpm add -D @yeeroen/astryx-a11y-spec@https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/$tarball
+                  \`\`\`"
+                  gh release create "v$VERSION" "$tarball" --title "v$VERSION (astryx ${commit:0:7})" --notes "$notes" --target "$GITHUB_SHA"

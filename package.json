@@ -1,0 +1,61 @@
+{
+    "name": "@yeeroen/astryx-a11y-spec",
+    "version": "0.1.0",
+    "description": "Unofficial fork of Astryx's internal accessibility spec-test contracts (facebook/astryx internal/a11y-spec), packaged for use outside the Astryx monorepo. Not affiliated with or endorsed by Meta.",
+    "license": "MIT",
+    "author": "Meta Platforms, Inc. and affiliates (upstream); packaged by yeeroen",
+    "homepage": "https://github.com/yeeroen/astryx-a11y-spec#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/yeeroen/astryx-a11y-spec.git"
+    },
+    "keywords": ["accessibility", "a11y", "wai-aria", "apg", "wcag", "playwright", "astryx", "fork"],
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.mts",
+            "default": "./dist/index.mjs"
+        },
+        "./chromium": {
+            "types": "./dist/harness/chromium.d.mts",
+            "default": "./dist/harness/chromium.mjs"
+        },
+        "./jsdom": {
+            "types": "./dist/harness/jsdom.d.mts",
+            "default": "./dist/harness/jsdom.mjs"
+        },
+        "./storybook": {
+            "types": "./dist/storybook.d.mts",
+            "default": "./dist/storybook.mjs"
+        }
+    },
+    "files": ["dist", "src", "upstream", "LICENSE", "UPSTREAM.json"],
+    "scripts": {
+        "build": "tsdown",
+        "prepack": "tsdown",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "test:chromium": "playwright test",
+        "sync": "node scripts/sync.mjs"
+    },
+    "peerDependencies": {
+        "@playwright/test": ">=1.50"
+    },
+    "peerDependenciesMeta": {
+        "@playwright/test": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@playwright/test": "1.61.1",
+        "@types/node": "^24",
+        "jsdom": "27.4.0",
+        "tsdown": "^0.23.2",
+        "typescript": "6.0.3",
+        "vitest": "4.1.11"
+    },
+    "engines": {
+        "node": ">=22"
+    },
+    "packageManager": "pnpm@11.10.0"
+}

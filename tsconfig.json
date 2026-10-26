@@ -1,0 +1,18 @@
+{
+    // Astryx's root tsconfig, minus its React settings: the upstream sources type-check as they are.
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "resolveJsonModule": true,
+        "types": ["node"]
+    },
+    "include": ["src", "*.config.ts", "scripts"]
+}

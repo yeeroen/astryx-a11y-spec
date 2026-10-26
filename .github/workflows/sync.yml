@@ -1,0 +1,90 @@
+# Weekly (and by hand): pull internal/a11y-spec from facebook/astryx and open a PR when it changed.
+# A PR opened with GITHUB_TOKEN doesn't trigger ci.yml, so the checks run here and their results
+# go in the PR body.
+name: Sync upstream
+on:
+    schedule:
+        - cron: '23 5 * * 1'
+    workflow_dispatch:
+        inputs:
+            commit:
+                description: Astryx commit to sync to (default main)
+                required: false
+                type: string
+permissions:
+    contents: write
+    pull-requests: write
+concurrency:
+    group: sync
+    cancel-in-progress: false
+jobs:
+    sync:
+        runs-on: ubuntu-24.04
+        timeout-minutes: 45
+        env:
+            GH_TOKEN: ${{ github.token }}
+        steps:
+            - uses: actions/checkout@v5
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: 24
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - name: Sync
+              run: node scripts/sync.mjs ${{ inputs.commit }}
+            - name: Anything new?
+              id: changed
+              run: |
+                  if git diff --quiet -- src upstream LICENSE; then
+                      echo "changed=false" >> "$GITHUB_OUTPUT"
+                      echo "### Up to date with $(jq -r .commit UPSTREAM.json | cut -c1-7)" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      echo "changed=true" >> "$GITHUB_OUTPUT"
+                      echo "short=$(jq -r .commit UPSTREAM.json | cut -c1-7)" >> "$GITHUB_OUTPUT"
+                  fi
+            - name: Bump the minor version
+              if: steps.changed.outputs.changed == 'true'
+              run: npm version minor --no-git-tag-version
+            - name: Check
+              if: steps.changed.outputs.changed == 'true'
+              id: check
+              continue-on-error: true
+              run: |
+                  set -o pipefail
+                  pnpm exec playwright install --with-deps chromium
+                  { pnpm typecheck && pnpm test && pnpm build && pnpm test:chromium; } 2>&1 | tee .sync/check.log
+            - name: Open the PR
+              if: steps.changed.outputs.changed == 'true'
+              env:
+                  SHORT: ${{ steps.changed.outputs.short }}
+                  OUTCOME: ${{ steps.check.outcome }}
+              run: |
+                  branch="sync/astryx-$SHORT"
+                  if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+                      echo "### $branch is already open" >> "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                  fi
+                  version=$(jq -r .version package.json)
+                  git config user.name 'github-actions[bot]'
+                  git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+                  git switch -c "$branch"
+                  git add src upstream LICENSE UPSTREAM.json package.json
+                  git commit -m "sync: astryx $SHORT (v$version)"
+                  git push -u origin "$branch"
+                  {
+                      cat .sync/summary.md
+                      echo
+                      if [ "$OUTCOME" = success ]; then
+                          echo "### Checks: passed"
+                          echo "Type check, DOM tests, build and Chromium self-proofs passed on this commit."
+                      else
+                          echo "### Checks: failed"
+                          echo '```'
+                          tail -60 .sync/check.log
+                          echo '```'
+                      fi
+                      echo
+                      echo "Merging publishes \`v$version\`."
+                  } > .sync/body.md
+                  gh pr create --title "sync: astryx $SHORT (v$version)" --body-file .sync/body.md
