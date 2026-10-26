@@ -21,6 +21,11 @@ jobs:
     sync:
         runs-on: ubuntu-24.04
         timeout-minutes: 45
+        # Chromium and its system libraries come with the image: no browser install. Keep the tag in
+        # step with @playwright/test in package.json.
+        container:
+            image: mcr.microsoft.com/playwright:v1.61.1-noble
+            options: --user 1001
         env:
             GH_TOKEN: ${{ github.token }}
         steps:
@@ -52,7 +57,6 @@ jobs:
               continue-on-error: true
               run: |
                   set -o pipefail
-                  pnpm exec playwright install --with-deps chromium
                   { pnpm typecheck && pnpm test && pnpm build && pnpm test:chromium; } 2>&1 | tee .sync/check.log
             - name: Open the PR
               if: steps.changed.outputs.changed == 'true'

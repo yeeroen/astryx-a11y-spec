@@ -9,6 +9,11 @@ jobs:
     check:
         runs-on: ubuntu-24.04
         timeout-minutes: 30
+        # Chromium and its system libraries come with the image: no browser install. Keep the tag in
+        # step with @playwright/test in package.json.
+        container:
+            image: mcr.microsoft.com/playwright:v1.61.1-noble
+            options: --user 1001
         steps:
             - uses: actions/checkout@v5
             - uses: pnpm/action-setup@v4
@@ -20,5 +25,4 @@ jobs:
             - run: pnpm typecheck
             - run: pnpm test
             - run: pnpm build
-            - run: pnpm exec playwright install --with-deps chromium
             - run: pnpm test:chromium
